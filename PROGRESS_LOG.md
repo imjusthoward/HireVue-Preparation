@@ -10,3 +10,5 @@
 - Reworked the homepage into a polished single-scroll frontend demo so the root route now reads as a real product surface rather than a plain backend scaffold.
 - Verified the dev server responds on `http://localhost:3000` with `200` at `/`, which is now the collaborator-facing demo entry point.
 - Prepared the repo for publish and Cloud Run deployment from the current Google Cloud project without introducing extra infrastructure.
+- Published the repo to GitHub at `https://github.com/imjusthoward/interview-prep-backend`.
+- Deployed the frontend demo to Cloud Run at `https://interview-prep-demo-309064718968.us-central1.run.app` and verified the root route returns `200`.
