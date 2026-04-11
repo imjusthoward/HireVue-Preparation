@@ -1,0 +1,182 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum InterviewSessionStatus {
+  IN_PROGRESS
+  EVALUATING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum EvaluationJobType {
+  ANSWER_EVALUATION
+}
+
+enum EvaluationJobStatus {
+  QUEUED
+  IN_PROGRESS
+  SUCCEEDED
+  FAILED
+}
+
+model User {
+  id             String             @id @default(cuid())
+  email          String             @unique
+  name           String?
+  passwordHash   String
+  role           UserRole           @default(USER)
+  isActive       Boolean            @default(true)
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  sessions       InterviewSession[]
+  auditLogs      AdminAuditLog[]
+}
+
+model InterviewTemplate {
+  id          String             @id @default(cuid())
+  slug        String             @unique
+  title       String
+  description String?
+  category    String
+  isActive    Boolean            @default(true)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  questions   Question[]
+  sessions    InterviewSession[]
+}
+
+model Question {
+  id               String            @id @default(cuid())
+  templateId       String
+  prompt           String            @db.Text
+  guidance         String?           @db.Text
+  orderIndex       Int
+  rubricDefinition Json?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  template         InterviewTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  sessionQuestions SessionQuestion[]
+
+  @@unique([templateId, orderIndex])
+}
+
+model InterviewSession {
+  id             String                 @id @default(cuid())
+  userId         String
+  templateId     String
+  title          String?
+  status         InterviewSessionStatus @default(IN_PROGRESS)
+  startedAt      DateTime               @default(now())
+  completedAt    DateTime?
+  lastActivityAt DateTime               @default(now())
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+  user           User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  template       InterviewTemplate      @relation(fields: [templateId], references: [id], onDelete: Restrict)
+  sessionQuestions SessionQuestion[]
+  feedbackReports FeedbackReport[]
+
+  @@index([userId, createdAt])
+  @@index([userId, status, createdAt])
+  @@index([status, createdAt])
+}
+
+model SessionQuestion {
+  id             String           @id @default(cuid())
+  sessionId      String
+  questionId     String?
+  orderIndex     Int
+  prompt         String           @db.Text
+  guidance       String?          @db.Text
+  rubricSnapshot Json?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  session        InterviewSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  question       Question?        @relation(fields: [questionId], references: [id], onDelete: SetNull)
+  answer         Answer?
+
+  @@unique([sessionId, orderIndex])
+}
+
+model Answer {
+  id                 String          @id @default(cuid())
+  sessionQuestionId  String          @unique
+  clientSubmissionId String          @unique
+  responseText       String          @db.Text
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+  sessionQuestion    SessionQuestion @relation(fields: [sessionQuestionId], references: [id], onDelete: Cascade)
+  evaluationJobs     EvaluationJob[]
+  feedbackReport     FeedbackReport?
+
+  @@index([createdAt])
+}
+
+model EvaluationJob {
+  id             String              @id @default(cuid())
+  answerId       String
+  jobType        EvaluationJobType
+  status         EvaluationJobStatus @default(QUEUED)
+  attemptCount   Int                 @default(0)
+  maxAttempts    Int                 @default(3)
+  leaseExpiresAt DateTime?
+  queuedAt       DateTime            @default(now())
+  startedAt      DateTime?
+  completedAt    DateTime?
+  lastError      String?             @db.Text
+  inputFingerprint String?
+  provider       String?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+  answer         Answer              @relation(fields: [answerId], references: [id], onDelete: Cascade)
+
+  @@unique([answerId, jobType])
+  @@index([status, queuedAt])
+  @@index([status, leaseExpiresAt, queuedAt])
+}
+
+model FeedbackReport {
+  id               String           @id @default(cuid())
+  sessionId        String
+  answerId         String           @unique
+  overallScore     Int
+  recommendation   String
+  summary          String           @db.Text
+  rubricScores     Json
+  strengths        Json
+  improvementAreas Json
+  evaluatorVersion String?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  session          InterviewSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  answer           Answer           @relation(fields: [answerId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, createdAt])
+}
+
+model AdminAuditLog {
+  id          String   @id @default(cuid())
+  actorUserId String?
+  action      String
+  targetType  String
+  targetId    String?
+  metadata    Json?
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+  actor       User?    @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([action, createdAt])
+  @@index([targetType, targetId])
+}
