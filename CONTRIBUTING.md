@@ -2,7 +2,7 @@
 
 1. Fork the repository
 2. Create a feature branch: git checkout -b feat/<short-description>
-3. Commit using [conventional commits](https://www.conventionalcommits.org/): eat:, ix:, docs:, chore:
+3. Commit using [conventional commits](https://www.conventionalcommits.org/): feat:, fix:, docs:, chore:
 4. Push and open a pull request
 
 ## Code style
